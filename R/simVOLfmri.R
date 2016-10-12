@@ -108,60 +108,51 @@ function(design=list(), image=list(), base=0, dim, nscan=NULL, TR=NULL, SNR=NULL
     }
   }
 
-  if(noise=="none"){
-    n <- 0
+  weights <- switch(noise,
+                    "none" = c(0, 0, 0, 0, 0, 0),
+                    "white" = c(1, 0, 0, 0, 0, 0),
+                    "temporal" = c(0, 1, 0, 0, 0, 0),
+                    "low-frequency" = c(0, 0, 1, 0, 0, 0),
+                    "physiological" = c(0, 0, 0, 1, 0, 0),
+                    "task-related" = c(0, 0, 0, 0, 1, 0),
+                    "spatial" = c(0, 0, 0, 0, 0, 1),
+                    weights)
+  if(weights[1]==0){
+    n.white <- 0
+  } else {
+    n.white <- systemnoise(dim=dim, sigma=sigma, nscan=nscan, type=type, vee=vee, verbose=verbose, template=template)
   }
-  if(noise=="white"){
-    n <- systemnoise(dim=dim, sigma=sigma, nscan=nscan, type=type, verbose=verbose, template=template, vee=vee)
+  if(weights[2]==0){
+    n.temp <- 0
+  } else {
+    n.temp <- temporalnoise(dim=dim, sigma=sigma, nscan=nscan, rho=rho.temp, verbose=verbose, template=template)
   }
-  if(noise=="temporal"){
-    n <- temporalnoise(dim=dim, sigma=sigma, nscan=nscan, rho=rho.temp, verbose=verbose, template=template)
+  if(weights[3]==0){
+    n.low <- 0
+  } else {
+    n.low <- lowfreqdrift(dim=dim, freq=freq.low, nscan=nscan, TR=TR, verbose=verbose, template=template)
   }
-  if(noise=="low-frequency"){
-    n <- lowfreqdrift(dim=dim, freq=freq.low, nscan=nscan, TR=TR, verbose=verbose, template=template)
+  if(weights[4]==0){
+    n.phys <- 0
+  } else {
+    n.phys <- physnoise(dim=dim, sigma=sigma, nscan=nscan, TR=TR, freq.heart=freq.heart, freq.resp=freq.resp, verbose=verbose, template=template)
   }
-  if(noise=="physiological"){
-    n <- physnoise(dim=dim, sigma=sigma, nscan=nscan, TR=TR, freq.heart=freq.heart, freq.resp=freq.resp, verbose=verbose, template=template)
+  if(weights[5]==0){
+    n.task <- 0
+  } else {
+    n.task <- tasknoise(act.image=act.image, sigma=sigma, type=type, vee=vee)
   }
-  if(noise=="task-related"){
-    n <- tasknoise(act.image=act.image, sigma=sigma, type=type, vee=vee)
+  if(weights[6]==0){
+    n.spat <- 0
+  } else {
+    n.spat <- spatialnoise(dim=dim, sigma=sigma, nscan=nscan, method=spat, type=type, vee=vee, rho=rho.spat, FWHM=FWHM, gamma.shape=gamma.shape, gamma.rate=gamma.rate, template=template, verbose=verbose)
   }
-  if(noise=="spatial"){
-    n <- spatialnoise(dim=dim, sigma=sigma, nscan=nscan, method=spat, type=type, rho=rho.spat, FWHM=FWHM, gamma.shape=gamma.shape, gamma.rate=gamma.rate, vee=vee, template=template, verbose=verbose)
-  }
-  if(noise=="mixture"){
-    if(weights[1]==0){
-      n.white <- 0
-    } else {
-      n.white <- systemnoise(dim=dim, sigma=sigma, nscan=nscan, type=type, vee=vee, verbose=verbose, template=template)
-    }
-    if(weights[2]==0){
-      n.temp <- 0
-    } else {
-      n.temp <- temporalnoise(dim=dim, sigma=sigma, nscan=nscan, rho=rho.temp, verbose=verbose, template=template)
-    }
-    if(weights[3]==0){
-      n.low <- 0
-    } else {
-      n.low <- lowfreqdrift(dim=dim, freq=freq.low, nscan=nscan, TR=TR, verbose=verbose, template=template)
-    }
-    if(weights[4]==0){
-      n.phys <- 0
-    } else {
-      n.phys <- physnoise(dim=dim, sigma=sigma, nscan=nscan, TR=TR, freq.heart=freq.heart, freq.resp=freq.resp, verbose=verbose, template=template)
-    }
-    if(weights[5]==0){
-      n.task <- 0
-    } else {
-      n.task <- tasknoise(act.image=act.image, sigma=sigma, type=type, vee=vee)
-    }
-    if(weights[6]==0){
-      n.spat <- 0
-    } else {
-      n.spat <- spatialnoise(dim=dim, sigma=sigma, nscan=nscan, method=spat, type=type, vee=vee, rho=rho.spat, FWHM=FWHM, gamma.shape=gamma.shape, gamma.rate=gamma.rate, template=template, verbose=verbose)
-    }
+
+  if(sum(weights)) {
     w <- weights
     n <- (w[1]* n.white + w[2]*n.temp + w[3]*n.low + w[4]*n.phys + w[5]*n.task + w[6]*n.spat)/sqrt(sum(w^2))
+  else {
+    n <- 0
   }
   
   fmri.data <- act.image + n - mean(n)
@@ -173,4 +164,3 @@ function(design=list(), image=list(), base=0, dim, nscan=NULL, TR=NULL, SNR=NULL
 
   return(fmri.data)
 }
-
