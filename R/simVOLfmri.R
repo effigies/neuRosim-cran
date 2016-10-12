@@ -145,7 +145,9 @@ function(design=list(), image=list(), base=0, dim, nscan=NULL, TR=NULL, SNR=NULL
   if(weights[6]==0){
     n.spat <- 0
   } else {
-    n.spat <- spatialnoise(dim=dim, sigma=sigma, nscan=nscan, method=spat, type=type, vee=vee, rho=rho.spat, FWHM=FWHM, gamma.shape=gamma.shape, gamma.rate=gamma.rate, template=template, verbose=verbose)
+    # spatialnoise expects all dimensions > 1
+    tmp <- spatialnoise(dim=dim[dim != 1], sigma=sigma, nscan=nscan, method=spat, type=type, vee=vee, rho=rho.spat, FWHM=FWHM, gamma.shape=gamma.shape, gamma.rate=gamma.rate, template=template, verbose=verbose)
+    n.spat <- array(tmp, dim=c(dim, nscan))
   }
 
   if(sum(weights)) {
